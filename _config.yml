@@ -15,9 +15,7 @@
 # in the templates via {{ site.myvariable }}.
 title: gunniwho blog
 description: >- # this means to ignore newlines until "baseurl:"
-  My name is Gunnar Palsson and this is my blog about software engineering.
-  I am an Icelandic engineer and my main topics of interest currently are
-  distributed systems and functional programming techniques.
+  Distributed systems, functional programming, dotnet.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: gunniwho
@@ -25,7 +23,7 @@ github_username:  gunniwho
 
 # Build settings
 markdown: kramdown
-theme: minima
+remote_theme: jekyll/minima
 minima:
   skin: dark
 plugins:
