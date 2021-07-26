@@ -1,0 +1,156 @@
+---
+layout: post
+title: "Building a cloud native system with pulumi"
+date: 2021-07-26 16:56:31 +0000
+tags: [cloud-native, continuous-delivery, pulumi, kubernetes]
+---
+In my [introduction]({% post_url 2021-07-25-introduction %}) post I mentioned that in my current team we are using a tool called [pulumi](https://pulumi.com) to deploy our application. In this post I'm going to explain what pulumi is and how we are using it to _supercharge our application deployment_.
+
+So what is pulumi? It's a tool to provision cloud infrastructure and deploy cloud applications using a programming language of your choice. You might be forgiven if you didn't think this sounded that impressive. The key thing here though is _"using a programming language of your choice"_. What this means is that 
+
+* you don't have to learn a new language specifically just for IaC
+* you don't have to write and maintain yaml
+* you can leverage powerful abstractions from the pulumi SDK and more importantly
+* you can build your own abstractions
+
+First, let's look a little bit at what this means in terms of provisioning cloud infrastructure. As an example, let's say that we need a kubernetes cluster. Using pulumi's [EKS](https://www.pulumi.com/blog/aws-eks-managed-nodes-fargate/) package this is as easy as 
+
+```typescript
+import * as eks from "@pulumi/eks";
+
+const cluster = new eks.Cluster("my-cluster");
+```
+
+Simply creating an `eks.Cluster` instance directs the pulumi tool to provision the necessary AWS and Kubernetes resources for the cluster upon running `pulumi up`. This will create the cluster in the  default VPC of the account that created the cluster. In general it will use sane defaults and, more importantly, defaults that adhere to _best practices_.
+
+It's easy to customize this as required. For example, if we'd like to create a dedicated VPC for the cluster, that's as easy as 
+
+```typescript
+import * as eks from "@pulumi/eks";
+import * as awsx from "@pulumi/awsx";
+
+const vpc = new awsx.Vpc("cluster-vpc");
+
+const cluster = new eks.Cluster("my-cluster", {
+    vpcId: vpc.id,
+    publicSubnetIds: vpc.publicSubnetIds,
+    privateSubnetIds: vpc.privateSubnetIds,
+});
+```
+
+This is great, you might think. It's a bit like [Terraform](https://www.terraform.io/), only less verbose. And you wouldn't be wrong either. But what can we do with the `cluster` instance? Could we use it to deploy Kubernetes resources? We most certainly can!
+
+```typescript
+import * as k8s from "@pulumi/kubernetes";
+
+const name = "my-api";
+const containerPort = 5000;
+const replicas = 2;
+const image: "my-api-image";
+const labels = { app: name };
+
+const deployment = new k8s.apps.v1.Deployment(
+    `${name}-deployment`, 
+        {
+        metadata: { labels },
+        spec: {
+            replicas,
+            selector: { matchLabels: labels },
+            template: {
+                metadata: { labels },
+                spec: {
+                    containers: [{
+                        name,
+                        image,
+                        ports: [{ name: "http", containerPort }]
+                        env: [
+                            { name: "API_PORT", value: `${containerPort}` }
+                        ]
+                    }],
+                }
+            }
+        },
+    }, 
+    { provider: cluster.provider }
+);
+
+const service = new k8s.core.v1.Service(
+    `${name}-service`, 
+        {
+        metadata: { labels },
+        spec: {
+            type: "ClusterIP",
+            ports: [{ port: 80, targetPort: "http" }],
+            selector: labels,
+        },
+    }, 
+    { provider: cluster.provider }
+);
+```
+
+Ok, still pretty nice - especially the fact that yaml is nowhere to be seen! Still, it's getting a little verbose. What if we decide that any time we're going to deploy an API, we're going to also create a service resource to load balance it inside the cluster? Couldn't we just create a function to do that?
+
+```typescript
+import { api } from "./api"
+
+api({
+    name: "my-api",
+    image: "my-api-image",
+    port: 80,
+    replicas: 2,
+    provider: cluster.provider,
+})
+```
+
+Sweet! So the `api` function creates the kubernetes deployment and service, adds an `API_PORT` environment variable to the `my-api` container (on an arbitrary port > 1024) and exposes the service inside the cluster on port 80 via the service. But what if my API needs a database?
+
+```typescript
+import { api } from "./api"
+import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
+import * as random from "@pulumi/random";
+
+const password = new random.RandomPassword("password", {
+    length: 16,
+    special: true,
+    overrideSpecial: `_%@`,
+});
+
+const db = new aws.rds.Instance("postgres", {
+    engine: "postgres",
+    instanceClass: "db.t3.micro",
+    name: "my-api-db",
+    username: "sa",
+    password: password.result,
+});
+
+api({
+    name: "my-api",
+    image: "my-api-image",
+    port: 80,
+    replicas: 2,
+    config: {
+        ConnectionStrings__DefaultConnection: pulumi.interpolate`Server=${db.address};Port=${db.port};Database=${db.name};User Id=${db.username};Password=${db.password}`
+    }
+    provider: cluster.provider,
+})
+```
+
+This will create an RDS postgres instance with a random, secret password and add a (dotnet specific) `ConnectionStrings__DefaultConnection` environment variable to the `my-api` container, containing the info required to be able to connect to the database. Still pretty neat but again, getting a little verbose...
+
+```typescript
+import { api } from "./api"
+
+api({
+    name: "my-api",
+    image: "my-api-image",
+    port: 80,
+    replicas: 2,
+}).addRdsPostgres({
+    size: "micro"
+}).build();
+```
+
+Ok, now this is starting to look seriously neat! The `api` function now returns an `APIBuilder` that has an `addRdsPostgres()` method to signal that this particular API should get an RDS postgres database. One could easily imagine additional methods such as `addMskKafka()` or `addS3()`. Calling `build()` then creates the required instances (rds password, rds instance, k8s deployment, k8s service, etc.). The builder is also no longer depending on the `cluster.provider` directly. The idea here is that the cluster is created in its own project, the `cluster.kubeconfig` value exported and then imported by the builder via a `StackReference` and subsequently used to create a local (to this project) kubernetes provider.
+
+Obviously I haven't shown the `api` module and the reason is simply that all the complexity is neatly hidden away there. The point however, is that by creating our own abstractions on top of the already super-powerful, built-in pulumi abstractions, we can do some pretty impressive things with pretty little code. We have traded the ability to configure everything with simplicity. This API (the `APIBuilder`) is highly opinionated. For example, it will add specific environment variables to the application deployment that the application developer has to be aware of such as `API_PORT` and `ConnectionStrings__DefaultConnection`. This is not a big price to pay and the benefit is that this will enable us to **go fast** 🚀!
