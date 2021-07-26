@@ -30,6 +30,8 @@ button.submit-button {
     background-color: #404040;
     padding: 10px;
     color: #bbbbbb;
-    outline: none;
-    border: none;
+    border: 1px solid #404040;
+}
+button.submit-button:hover {
+    border: 1px solid #bbbbbb;
 }
