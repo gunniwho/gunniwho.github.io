@@ -1,0 +1,26 @@
+<section class="pt2">
+
+    <h2 class="post-list-heading">Discussion ({{ site.data.comments[page.slug].size }})</h2>
+
+    {% for c in site.data.comments[page.slug] | sort %}
+    {% assign comment = c[1] %}
+
+    <article>
+        <div class="comment-content">
+            <div class="comment-header post-meta">
+                {% if comment.twitter %}
+                    <span><strong><a href="https://twitter.com/{{ comment.twitter }}">{{ comment.twitter }}</a></strong></span>
+                {% else %}
+                    <span><strong>{{ comment.name | strip_html }}</strong></span>
+                {% endif %}
+                <span>•</span>
+                <date>{{ comment.date | date: "%b %d, %Y" }}</date>
+            </div>
+            <div class="comment-body">
+                {{ comment.message | strip_html | markdownify | smartify }}
+            </div>
+    </article>
+
+    {% endfor %}
+
+</section>

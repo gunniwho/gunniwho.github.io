@@ -2,7 +2,7 @@
 layout: post
 title:  "Introduction"
 date:   2021-07-25 12:15:14 +0000
-categories: 
+tags: [general, tech]
 ---
 This is the first post on my new blog. I've been thinking about starting a blog for a while now but never actually made the time to do it. But now I'm stuck in a hotel room, quarantined from my family due to the COVID-19 pandemic, with nothing else but time (and my laptop) on my hands. Let's make it count!
 

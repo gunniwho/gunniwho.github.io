@@ -1,0 +1,37 @@
+<section id="comment-form">
+
+    <h2 class="post-list-heading">Add to the discussion</h2>
+    <p class="post-meta">Note that your comment will not be published until it has been reviewed. Please be patient 😊</p>
+
+    <form name="comments" method="post" action="https://staticwho.herokuapp.com/v2/entry/gunniwho/gunniwho.github.io/master/comments" >
+
+        <input name="options[redirect]" type="hidden" value="http://localhost:4000{{ page.url }}">
+        <input name="options[slug]" hidden type="hidden" value="{{ page.slug }}">
+
+        <p>
+            <label for="name" >Name *</label>
+            <input class="commenter-name" name="fields[name]" id="name" type="text" spellcheck="false" required >
+        </p>
+
+        <p>
+            <label for="twitter" >Twitter</label>
+            <input class="commenter-name" name="fields[twitter]" id="twitter" type="text" spellcheck="false" >
+        </p>
+
+        <p>
+            <label for="message" >Comment *</label>
+            <textarea class="comment" name="fields[message]" id="message" spellcheck="false" required></textarea>
+        </p>
+
+        <div hidden>
+
+            <label for="hp" class>Complete this if you don't want your comment to appear</label>
+            <input name="fields[bot-field]" id="hp" type="text" >
+
+        </div>
+
+        <button type="submit" class="submit-button">Submit comment</button>
+
+    </form>
+
+</section>

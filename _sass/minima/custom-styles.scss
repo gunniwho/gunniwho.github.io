@@ -1,0 +1,35 @@
+div.comment-content {
+    border: 1px solid #444;
+    margin-bottom: 25px;
+}
+div.comment-header {
+    padding: 15px 15px 0px 15px;
+}
+div.comment-body {
+    padding:5px 15px 0px 15px;
+}
+textarea.comment {
+    width: 97%;
+    height: 100px;
+    padding: 10px;
+    background-color: #404040;
+    color: #bbbbbb;
+    margin-bottom: 10px;
+    outline: none;
+    border: none;
+}
+input.commenter-name {
+    width: 97%;
+    padding: 10px;
+    background-color: #404040;
+    color: #bbbbbb;
+    outline: none;
+    border: none;
+}
+button.submit-button {
+    background-color: #404040;
+    padding: 10px;
+    color: #bbbbbb;
+    outline: none;
+    border: none;
+}
